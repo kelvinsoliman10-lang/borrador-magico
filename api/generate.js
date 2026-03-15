@@ -11,7 +11,10 @@ export default async function handler(req, res) {
 
     // Vercel y Vite leen las variables de entorno inyectadas
     const hfToken = process.env.VITE_HF_API_TOKEN;
-    let apiUrl = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-inpainting";
+    
+    // Probamos con el modelo v1-5 que es más estable actualmente
+    let modelId = "stable-diffusion-v1-5/stable-diffusion-inpainting";
+    let apiUrl = `https://router.huggingface.co/hf-inference/models/${modelId}`;
 
     const fetchOptions = {
       method: "POST",
@@ -27,11 +30,21 @@ export default async function handler(req, res) {
       })
     };
 
+    console.log(`Llamando a Hugging Face: ${apiUrl}`);
     let response = await fetch(apiUrl, fetchOptions);
 
-    // Fallback al modelo de Stability AI
+    // Si el modelo da 404, probamos con el de estabilidad 2
     if (response.status === 404) {
-      apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting";
+      console.warn(`Modelo ${modelId} no encontrado (404). Probando alternativa...`);
+      modelId = "stabilityai/stable-diffusion-2-inpainting";
+      apiUrl = `https://router.huggingface.co/hf-inference/models/${modelId}`;
+      response = await fetch(apiUrl, fetchOptions);
+    }
+
+    // Segunda alternativa si sigue fallando
+    if (response.status === 404) {
+      console.warn(`Modelo ${modelId} no encontrado (404). Intentando runwayml clásico...`);
+      apiUrl = `https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-inpainting`;
       response = await fetch(apiUrl, fetchOptions);
     }
 
