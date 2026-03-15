@@ -12,9 +12,10 @@ export default async function handler(req, res) {
     // Vercel y Vite leen las variables de entorno inyectadas
     const hfToken = process.env.VITE_HF_API_TOKEN;
     
-    // Probamos con el modelo v1-5 que es más estable actualmente
-    let modelId = "stable-diffusion-v1-5/stable-diffusion-inpainting";
-    let apiUrl = `https://router.huggingface.co/hf-inference/models/${modelId}`;
+    const apiUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting";
+
+    // Limpieza de Base64 usando el regex solicitado
+    const cleanB64 = (str) => str.replace(/^data:image\/\w+;base64,/, "");
 
     const fetchOptions = {
       method: "POST",
@@ -22,31 +23,16 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${hfToken}`,
         "Content-Type": "application/json"
       },
-      // Limpiamos los Base64 de sus encabezados HTTP si los traen
       body: JSON.stringify({
-        inputs: original.includes(',') ? original.split(',')[1] : original,
-        mask: mask.includes(',') ? mask.split(',')[1] : mask,
-        parameters: "high quality, remove object, clean background"
+        inputs: {
+            image: cleanB64(original),
+            mask: cleanB64(mask)
+        }
       })
     };
 
-    console.log(`Llamando a Hugging Face: ${apiUrl}`);
+    console.log("Enviando a Hugging Face...");
     let response = await fetch(apiUrl, fetchOptions);
-
-    // Si el modelo da 404, probamos con el de estabilidad 2
-    if (response.status === 404) {
-      console.warn(`Modelo ${modelId} no encontrado (404). Probando alternativa...`);
-      modelId = "stabilityai/stable-diffusion-2-inpainting";
-      apiUrl = `https://router.huggingface.co/hf-inference/models/${modelId}`;
-      response = await fetch(apiUrl, fetchOptions);
-    }
-
-    // Segunda alternativa si sigue fallando
-    if (response.status === 404) {
-      console.warn(`Modelo ${modelId} no encontrado (404). Intentando runwayml clásico...`);
-      apiUrl = `https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-inpainting`;
-      response = await fetch(apiUrl, fetchOptions);
-    }
 
     // Si Hugging Face devuelve error (503 cargando, etc), reenviamos esos errores 1:1 al frontend
     if (!response.ok) {
