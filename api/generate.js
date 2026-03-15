@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     // Vercel y Vite leen las variables de entorno inyectadas
     const hfToken = process.env.VITE_HF_API_TOKEN;
     
-    const apiUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting";
+    const apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting";
 
     // Limpieza de Base64 usando el regex solicitado
     const cleanB64 = (str) => str.replace(/^data:image\/\w+;base64,/, "");
