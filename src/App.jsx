@@ -57,6 +57,9 @@ function App() {
                 const errorData = await response.json();
                 console.error("Cuerpo completo del error de la API:", errorData);
                 errorMsg = errorData.error || errorMsg;
+                if (errorData.details) {
+                    errorMsg += `\nDetalles: ${errorData.details}`;
+                }
             } catch(e) {
                 console.error("Error al parsear la respuesta de la API:", e);
             }

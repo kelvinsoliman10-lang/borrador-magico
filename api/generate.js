@@ -16,58 +16,67 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Falta el Token de API (VITE_HF_API_TOKEN) en las variables de entorno de Vercel.' });
     }
     
-    // Intentamos con el router oficial sin el prefijo hf-inference que puede dar 404
-    // URLs a probar en orden de modernidad/estabilidad
-    const urls = [
-      "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting",
-      "https://router.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting",
-      "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting"
-    ];
-
     // Limpieza de Base64 usando el regex solicitado
     const cleanB64 = (str) => str.replace(/^data:image\/\w+;base64,/, "");
+    const imgClean = cleanB64(original);
+    const mskClean = cleanB64(mask);
 
-    const payload = JSON.stringify({
-      inputs: {
-        image: cleanB64(original),
-        mask: cleanB64(mask)
+    // Intentamos diferentes combinaciones de URLs y formatos de Payloads
+    // Algunos modelos esperan {inputs: {image, mask}}, otros {image, mask_image, inputs: "prompt"}
+    const configs = [
+      { 
+        url: "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting", 
+        body: { inputs: { image: imgClean, mask: mskClean } } 
+      },
+      { 
+        url: "https://router.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting", 
+        body: { inputs: { image: imgClean, mask: mskClean } } 
+      },
+      { 
+        url: "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting", 
+        body: { image: imgClean, mask_image: mskClean, inputs: "remove background object" } 
+      },
+      { 
+        url: "https://router.huggingface.co/hf-inference/models/stable-diffusion-v1-5/stable-diffusion-inpainting", 
+        body: { inputs: { image: imgClean, mask: mskClean } } 
       }
-    });
+    ];
 
     let response;
-    let lastError;
+    let lastError = "No se pudieron realizar intentos.";
+    let lastUrl = "";
 
-    for (const url of urls) {
+    for (const config of configs) {
       try {
-        console.log(`Intentando: ${url}`);
-        response = await fetch(url, {
+        lastUrl = config.url;
+        console.log(`Intentando: ${lastUrl}`);
+        response = await fetch(lastUrl, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${hfToken}`,
             "Content-Type": "application/json"
           },
-          body: payload
+          body: JSON.stringify(config.body)
         });
 
         if (response.ok || response.status === 503) {
-          // Si es exitoso o es el error 503 (Cargando modelo), nos quedamos con esta URL
           break;
         }
         
-        const errType = await response.text();
-        lastError = `Status ${response.status}: ${errType}`;
-        console.warn(`Fallo en ${url}: ${lastError}`);
+        const errText = await response.text();
+        lastError = `Status ${response.status}: ${errText}`;
+        console.warn(`Fallo en ${lastUrl}: ${lastError}`);
       } catch (e) {
         lastError = e.message;
-        console.error(`Error de red en ${url}:`, e);
+        console.error(`Error de red en ${lastUrl}:`, e);
       }
     }
 
     // Si después de todos los intentos no tenemos un response decente
     if (!response || (!response.ok && response.status !== 503)) {
       return res.status(response?.status || 500).json({ 
-        error: "No se pudo conectar con ningún endpoint de Hugging Face.",
-        details: lastError 
+        error: "Fallo total de conexión con Hugging Face.",
+        details: `Último intento en ${lastUrl} -> ${lastError}`
       });
     }
 
