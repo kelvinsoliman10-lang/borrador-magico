@@ -16,7 +16,8 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Falta el Token de API (VITE_HF_API_TOKEN) en las variables de entorno de Vercel.' });
     }
     
-    const apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting";
+    // Intentamos con el router oficial sin el prefijo hf-inference que puede dar 404
+    const apiUrl = "https://router.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting";
 
     // Limpieza de Base64 usando el regex solicitado
     const cleanB64 = (str) => str.replace(/^data:image\/\w+;base64,/, "");
