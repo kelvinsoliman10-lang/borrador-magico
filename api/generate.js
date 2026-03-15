@@ -11,7 +11,7 @@ export default async function handler(req, res) {
 
     // Vercel y Vite leen las variables de entorno inyectadas
     const hfToken = process.env.VITE_HF_API_TOKEN;
-    let apiUrl = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-inpainting";
+    let apiUrl = "https://router.huggingface.co/hf-inference/models/runwayml/stable-diffusion-inpainting";
 
     const fetchOptions = {
       method: "POST",
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     // Fallback al modelo de Stability AI
     if (response.status === 404) {
-      apiUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting";
+      apiUrl = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-2-inpainting";
       response = await fetch(apiUrl, fetchOptions);
     }
 
