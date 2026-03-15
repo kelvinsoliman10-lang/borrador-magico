@@ -20,45 +20,18 @@ function App() {
       const { original, mask } = canvasRef.current.getMaskAndOriginal();
       if (!original || !mask) throw new Error("No se pudo procesar la imagen.");
       
-      setStatusText('Consultando IA (Hugging Face)...');
+      setStatusText('Consultando IA (Hugging Face via Backend)...');
       
-      const b64toBlob = (b64Data, contentType='', sliceSize=512) => {
-        const byteCharacters = atob(b64Data);
-        const byteArrays = [];
-        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-          const slice = byteCharacters.slice(offset, offset + sliceSize);
-          const byteNumbers = new Array(slice.length);
-          for (let i = 0; i < slice.length; i++) {
-            byteNumbers[i] = slice.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          byteArrays.push(byteArray);
-        }
-        return new Blob(byteArrays, {type: contentType});
-      };
-
-      const originalB64 = original.split(',')[1];
-      const originalBlob = b64toBlob(originalB64, 'image/jpeg');
-
-      let apiUrl = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-inpainting";
-      
-      const getFetchOptions = () => ({
+      const response = await fetch("/api/generate", {
         method: "POST",
-        mode: "cors",
-        credentials: "omit",
         headers: {
-          "Authorization": `Bearer ${import.meta.env.VITE_HF_API_TOKEN}`
+          "Content-Type": "application/json"
         },
-        body: originalBlob
+        body: JSON.stringify({ 
+          original, 
+          mask 
+        })
       });
-
-      let response = await fetch(apiUrl, getFetchOptions());
-
-      if (response.status === 404) {
-          setStatusText('Modelo principal (404). Usando respaldo...');
-          apiUrl = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-inpainting";
-          response = await fetch(apiUrl, getFetchOptions());
-      }
 
       if (!response.ok) {
         if (response.status === 503) {
